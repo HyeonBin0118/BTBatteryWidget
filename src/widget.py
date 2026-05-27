@@ -2,13 +2,14 @@
 from __future__ import annotations
 
 import datetime
+from pathlib import Path
+
 from PyQt6.QtCore import Qt, QPoint, QTimer
-from PyQt6.QtGui import QColor, QPainter, QFont
+from PyQt6.QtGui import QColor, QPainter, QFont, QPixmap
 from PyQt6.QtWidgets import QWidget, QApplication
 
 from .battery import fetch_devices, Device
 from .config import Config
-
 
 class BatteryWidget(QWidget):
     def __init__(self, cfg: Config):
@@ -149,14 +150,23 @@ class BatteryWidget(QWidget):
         for dev in self._devices:
             color = QColor(self._battery_color(dev.battery))
 
-            # 아이콘 (show_icon 온이면 ● 표시)
+            # 아이콘
             x_start = padding
             if self._cfg.show_icon:
-                painter.setFont(QFont("Segoe UI", 7))
-                painter.setPen(QColor(0, 120, 215))
-                painter.drawText(x_start, y_offset, 16, row_h,
-                                 Qt.AlignmentFlag.AlignVCenter, "⬤")
-                x_start += 18
+                icon_str = self._cfg.device_icons.get(dev.name, "🔵")
+                if icon_str and Path(icon_str).exists():
+                    px = QPixmap(icon_str).scaled(
+                        16, 16,
+                        Qt.AspectRatioMode.KeepAspectRatio,
+                        Qt.TransformationMode.SmoothTransformation
+                    )
+                    painter.drawPixmap(x_start, y_offset + (row_h - 16) // 2, px)
+                elif icon_str:
+                    painter.setFont(QFont("Segoe UI Emoji", 11))
+                    painter.setPen(text_color)
+                    painter.drawText(x_start, y_offset, 20, row_h,
+                                    Qt.AlignmentFlag.AlignVCenter, icon_str)
+                x_start += 22
 
             # 장치 이름 (말줄임)
             name_area_w = self.width() - x_start - bar_w - padding * 2
@@ -166,27 +176,6 @@ class BatteryWidget(QWidget):
             display_name = metrics.elidedText(dev.name, Qt.TextElideMode.ElideRight, name_area_w)
             painter.drawText(x_start, y_offset, name_area_w, row_h,
                              Qt.AlignmentFlag.AlignVCenter, display_name)
-
-            # 아이콘
-        x_start = padding
-        if self._cfg.show_icon:
-            icon_str = self._cfg.device_icons.get(dev.name, "🔵")
-            if icon_str and Path(icon_str).exists():
-                # 이미지 파일
-                px = QPixmap(icon_str).scaled(
-                    16, 16,
-                    Qt.AspectRatioMode.KeepAspectRatio,
-                    Qt.TransformationMode.SmoothTransformation
-                )
-                painter.drawPixmap(x_start, y_offset + (row_h - 16) // 2, px)
-            elif icon_str:
-                # 이모지
-                painter.setFont(QFont("Segoe UI Emoji", 11))
-                painter.setPen(text_color)
-                painter.drawText(x_start, y_offset, 20, row_h,
-                                Qt.AlignmentFlag.AlignVCenter, icon_str)
-            x_start += 22
-
 
             # 배터리 바
             bx = self.width() - padding - bar_w

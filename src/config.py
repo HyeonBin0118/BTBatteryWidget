@@ -15,6 +15,7 @@ def _config_path() -> Path:
 class Config:
     # [일반]
     title: str = "BT Battery"
+    app_name: str = "BTBatteryWidget"
     refresh_interval: int = 5
     startup: bool = False
 
@@ -28,7 +29,7 @@ class Config:
     color_mid: str  = "#FFB400"
     color_low: str  = "#DC3232"
 
-    # 장치별 아이콘: {장치이름: 이모지 or 파일경로}
+    # [장치별 아이콘] - {"MX Master 4": "🖱", ...}
     device_icons: dict = field(default_factory=dict)
 
     # [동작]
@@ -53,6 +54,8 @@ def load() -> Config:
             data = json.load(f)
         default = asdict(Config())
         default.update({k: v for k, v in data.items() if k in default})
+        if not isinstance(default.get("device_icons"), dict):
+            default["device_icons"] = {}
         return Config(**default)
     except Exception:
         return Config()
