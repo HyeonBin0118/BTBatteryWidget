@@ -15,16 +15,57 @@ from .settings import SettingsDialog
 
 
 def _make_icon() -> QIcon:
-    px = QPixmap(32, 32)
+    from PyQt6.QtGui import QPen, QLinearGradient
+    from PyQt6.QtCore import QRectF
+
+    size = 64
+    px = QPixmap(size, size)
     px.fill(Qt.GlobalColor.transparent)
     p = QPainter(px)
     p.setRenderHint(QPainter.RenderHint.Antialiasing)
-    p.setBrush(QColor(0, 120, 215))
+
+    # 배경 그라디언트
+    grad = QLinearGradient(0, 0, 0, size)
+    grad.setColorAt(0, QColor(50, 130, 255))
+    grad.setColorAt(1, QColor(20, 80, 200))
+    p.setBrush(grad)
     p.setPen(Qt.PenStyle.NoPen)
-    p.drawEllipse(0, 0, 32, 32)
-    p.setPen(QColor(255, 255, 255))
-    p.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
-    p.drawText(px.rect(), Qt.AlignmentFlag.AlignCenter, "BT")
+    p.drawRoundedRect(2, 2, size - 4, size - 4, 14, 14)
+
+    # 배터리 몸통
+    bx, by, bw, bh = 10, 22, 36, 20
+    pen = QPen(QColor(255, 255, 255))
+    pen.setWidth(3)
+    p.setPen(pen)
+    p.setBrush(Qt.BrushStyle.NoBrush)
+    p.drawRoundedRect(bx, by, bw, bh, 4, 4)
+
+    # 배터리 + 극
+    p.setPen(Qt.PenStyle.NoPen)
+    p.setBrush(QColor(255, 255, 255))
+    p.drawRoundedRect(bx + bw + 2, by + 6, 4, bh - 12, 2, 2)
+
+    # 배터리 충전 표시 (75% 정도)
+    fill_w = int((bw - 6) * 0.75)
+    p.setBrush(QColor(100, 220, 130))
+    p.drawRoundedRect(bx + 3, by + 3, fill_w, bh - 6, 3, 3)
+
+    # 블루투스 심볼 (우측 하단 작게)
+    pen2 = QPen(QColor(255, 255, 255))
+    pen2.setWidth(2)
+    pen2.setCapStyle(Qt.PenCapStyle.RoundCap)
+    p.setPen(pen2)
+    cx, t, b = 52, 36, 58
+    mid = (t + b) // 2
+    u   = t + (b - t) // 4
+    lo  = b - (b - t) // 4
+    r   = cx + 6
+    p.drawLine(cx, t, cx, b)
+    p.drawLine(cx, t, r, u)
+    p.drawLine(r, u, cx, mid)
+    p.drawLine(cx, mid, r, lo)
+    p.drawLine(r, lo, cx, b)
+
     p.end()
     return QIcon(px)
 

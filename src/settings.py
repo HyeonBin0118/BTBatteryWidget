@@ -213,7 +213,7 @@ class SettingsDialog(QDialog):
         move_group = QGroupBox("위젯 이동")
         move_layout = QVBoxLayout(move_group)
 
-        self._drag_lock_check = QCheckBox("드래그 잠금 (실수 방지)")
+        self._drag_lock_check = QCheckBox("위젯 잠금 (이동 및 크기 조절 불가)")
         self._drag_lock_check.setChecked(self._cfg.drag_lock)
         self._drag_lock_check.stateChanged.connect(self._preview)
         move_layout.addWidget(self._drag_lock_check)

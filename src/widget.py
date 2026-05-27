@@ -150,13 +150,15 @@ class BatteryWidget(QWidget):
     def mousePressEvent(self, e):
         if e.button() != Qt.MouseButton.LeftButton:
             return
+        if self._cfg.drag_lock:
+            return
         edge = self._edge_at(e.position().toPoint())
         if edge:
             self._resize_edge      = edge
             self._resize_start_pos  = e.globalPosition().toPoint()
             self._resize_start_size = self.size()
             self._resize_start_wpos = self.pos()
-        elif not self._cfg.drag_lock:
+        else:
             self._drag_pos = e.globalPosition().toPoint() - self.frameGeometry().topLeft()
 
     def mouseMoveEvent(self, e):
@@ -191,8 +193,11 @@ class BatteryWidget(QWidget):
         else:
             # 커서 모양 업데이트
             edge = self._edge_at(pos)
-            self.setCursor(self._cursor_for_edge(edge))
-
+            if not self._cfg.drag_lock:
+                self.setCursor(self._cursor_for_edge(edge))
+            else:
+                self.setCursor(Qt.CursorShape.ArrowCursor)
+                
     def mouseReleaseEvent(self, _):
         if self._resize_edge:
             self._resize_edge = ""
