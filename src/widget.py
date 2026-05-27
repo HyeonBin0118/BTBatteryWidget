@@ -4,12 +4,15 @@ from __future__ import annotations
 import datetime
 from pathlib import Path
 
-from PyQt6.QtCore import Qt, QPoint, QTimer
-from PyQt6.QtGui import QColor, QPainter, QFont, QPixmap
+from PyQt6.QtCore import Qt, QPoint, QTimer, QSize
+from PyQt6.QtGui import QColor, QPainter, QFont, QPixmap, QFontMetrics, QCursor
 from PyQt6.QtWidgets import QWidget, QApplication
 
 from .battery import fetch_devices, Device
 from .config import Config
+
+_EDGE = 6  # 가장자리 감지 범위 (px)
+
 
 class BatteryWidget(QWidget):
     def __init__(self, cfg: Config):
@@ -17,7 +20,13 @@ class BatteryWidget(QWidget):
         self._cfg = cfg
         self._devices: list[Device] = []
         self._drag_pos: QPoint | None = None
-        self._alerted: set[str] = set()  # 이미 알림 보낸 장치 이름
+        self._alerted: set[str] = set()
+
+        # 리사이즈 상태
+        self._resize_edge: str = ""
+        self._resize_start_pos: QPoint | None = None
+        self._resize_start_size: QSize | None = None
+        self._resize_start_wpos: QPoint | None = None
 
         self._setup_window()
         self._setup_timer()
@@ -30,7 +39,9 @@ class BatteryWidget(QWidget):
             | Qt.WindowType.Tool
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        self.setMinimumWidth(180)
+        self.setMinimumSize(140, 60)
+        self.resize(cfg_w := getattr(self._cfg, 'widget_w', 200),
+                    cfg_h := getattr(self._cfg, 'widget_h', 80))
         self.move(self._cfg.pos_x, self._cfg.pos_y)
         self._apply_opacity()
 
@@ -42,14 +53,12 @@ class BatteryWidget(QWidget):
         self._timer.timeout.connect(self._refresh)
         self._timer.start(self._cfg.refresh_interval * 60 * 1000)
 
-        # 새 장치 감지용 빠른 타이머 (30초)
         self._detect_timer = QTimer(self)
         self._detect_timer.timeout.connect(self._detect_new)
         if self._cfg.detect_new_device:
             self._detect_timer.start(30 * 1000)
 
     def apply_config(self, cfg: Config):
-        """설정 창에서 OK 눌렀을 때 호출."""
         self._cfg = cfg
         self._apply_opacity()
         self._timer.setInterval(cfg.refresh_interval * 60 * 1000)
@@ -70,27 +79,22 @@ class BatteryWidget(QWidget):
     def _refresh(self):
         self._devices = fetch_devices()
         self._check_alerts()
-        self._resize_to_content()
+        self._auto_resize()
         self.update()
 
     def _detect_new(self):
-        """현재 목록과 비교해서 새 장치 잡히면 즉시 갱신."""
         new = fetch_devices()
-        current_names = {d.name for d in self._devices}
-        new_names = {d.name for d in new}
-        if new_names != current_names:
+        if {d.name for d in new} != {d.name for d in self._devices}:
             self._devices = new
-            self._resize_to_content()
+            self._auto_resize()
             self.update()
 
     def _check_alerts(self):
         if not self._cfg.alert_enabled:
             return
-        from PyQt6.QtWidgets import QSystemTrayIcon
         for dev in self._devices:
             if dev.battery <= self._cfg.alert_threshold and dev.name not in self._alerted:
                 self._alerted.add(dev.name)
-                # 부모(tray)한테 알림 요청 - tray에서 showMessage 호출
                 if hasattr(self, '_tray'):
                     self._tray.show_alert(dev.name, dev.battery)
             elif dev.battery > self._cfg.alert_threshold:
@@ -99,26 +103,130 @@ class BatteryWidget(QWidget):
     def force_refresh(self):
         self._refresh()
 
-    def _resize_to_content(self):
-        row_h   = 32
-        padding = 12
-        # 제목 있으면 한 줄 추가
-        title_h = 28 if self._cfg.title else 0
+    def _auto_resize(self):
+        """장치 수가 바뀌었을 때만 높이 자동 조정. 너비는 유지."""
+        row_h  = 32
+        pad    = 12
+        title_h = 24 if self._cfg.title else 0
         n = max(len(self._devices), 1)
-        self.setFixedHeight(n * row_h + padding * 2 + title_h)
+        new_h = n * row_h + pad * 2 + title_h
+        self.resize(self.width(), new_h)
+
+    # ── 가장자리 판별 ─────────────────────────────────────────────────
+
+    def _edge_at(self, pos: QPoint) -> str:
+        x, y = pos.x(), pos.y()
+        w, h = self.width(), self.height()
+        m = _EDGE
+        r = x >= w - m
+        b = y >= h - m
+        l = x <= m
+        t = y <= m
+        if r and b: return "rb"
+        if l and b: return "lb"
+        if r and t: return "rt"
+        if l and t: return "lt"
+        if r: return "r"
+        if b: return "b"
+        if l: return "l"
+        if t: return "t"
+        return ""
+
+    def _cursor_for_edge(self, edge: str) -> Qt.CursorShape:
+        map_ = {
+            "r":  Qt.CursorShape.SizeHorCursor,
+            "l":  Qt.CursorShape.SizeHorCursor,
+            "b":  Qt.CursorShape.SizeVerCursor,
+            "t":  Qt.CursorShape.SizeVerCursor,
+            "rb": Qt.CursorShape.SizeFDiagCursor,
+            "lt": Qt.CursorShape.SizeFDiagCursor,
+            "lb": Qt.CursorShape.SizeBDiagCursor,
+            "rt": Qt.CursorShape.SizeBDiagCursor,
+        }
+        return map_.get(edge, Qt.CursorShape.ArrowCursor)
+
+    # ── 마우스 이벤트 ─────────────────────────────────────────────────
+
+    def mousePressEvent(self, e):
+        if e.button() != Qt.MouseButton.LeftButton:
+            return
+        edge = self._edge_at(e.position().toPoint())
+        if edge:
+            self._resize_edge      = edge
+            self._resize_start_pos  = e.globalPosition().toPoint()
+            self._resize_start_size = self.size()
+            self._resize_start_wpos = self.pos()
+        elif not self._cfg.drag_lock:
+            self._drag_pos = e.globalPosition().toPoint() - self.frameGeometry().topLeft()
+
+    def mouseMoveEvent(self, e):
+        pos = e.position().toPoint()
+
+        if self._resize_edge and self._resize_start_pos:
+            # 리사이즈 처리
+            delta = e.globalPosition().toPoint() - self._resize_start_pos
+            sw = self._resize_start_size.width()
+            sh = self._resize_start_size.height()
+            sx = self._resize_start_wpos.x()
+            sy = self._resize_start_wpos.y()
+            min_w, min_h = self.minimumWidth(), self.minimumHeight()
+
+            new_x, new_y, new_w, new_h = sx, sy, sw, sh
+
+            if "r" in self._resize_edge:
+                new_w = max(min_w, sw + delta.x())
+            if "b" in self._resize_edge:
+                new_h = max(min_h, sh + delta.y())
+            if "l" in self._resize_edge:
+                new_w = max(min_w, sw - delta.x())
+                new_x = sx + (sw - new_w)
+            if "t" in self._resize_edge:
+                new_h = max(min_h, sh - delta.y())
+                new_y = sy + (sh - new_h)
+
+            self.setGeometry(new_x, new_y, new_w, new_h)
+        elif self._drag_pos and not self._cfg.drag_lock:
+            # 드래그 이동
+            self.move(e.globalPosition().toPoint() - self._drag_pos)
+        else:
+            # 커서 모양 업데이트
+            edge = self._edge_at(pos)
+            self.setCursor(self._cursor_for_edge(edge))
+
+    def mouseReleaseEvent(self, _):
+        if self._resize_edge:
+            self._resize_edge = ""
+            self._resize_start_pos = None
+            self.setCursor(Qt.CursorShape.ArrowCursor)
+        elif self._drag_pos:
+            if self._cfg.corner_snap:
+                self._snap_to_corner()
+        self._drag_pos = None
+        self._cfg.pos_x = self.x()
+        self._cfg.pos_y = self.y()
+
+    def _snap_to_corner(self):
+        screen = QApplication.primaryScreen().availableGeometry()
+        m = self._cfg.snap_margin
+        x, y = self.x(), self.y()
+        w, h = self.width(), self.height()
+        snap_x = 0 if x < m else (screen.width() - w if x + w > screen.width() - m else x)
+        snap_y = 0 if y < m else (screen.height() - h if y + h > screen.height() - m else y)
+        self.move(snap_x, snap_y)
+
+    # ── 그리기 ────────────────────────────────────────────────────────
 
     def paintEvent(self, _):
-        theme = self._current_theme()
+        theme  = self._current_theme()
         is_dark = (theme == "dark")
 
-        bg_color   = QColor(30, 30, 30, int(210 * self._cfg.opacity + 0.5)) if is_dark else QColor(240, 240, 240, int(220 * self._cfg.opacity + 0.5))
+        bg_color   = QColor(30, 30, 30, 210) if is_dark else QColor(240, 240, 240, 220)
         text_color = QColor(230, 230, 230) if is_dark else QColor(30, 30, 30)
         sub_color  = QColor(160, 160, 160) if is_dark else QColor(100, 100, 100)
 
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
-        # 배경
         painter.setBrush(bg_color)
         painter.setPen(Qt.PenStyle.NoPen)
         painter.drawRoundedRect(self.rect(), 12, 12)
@@ -126,7 +234,6 @@ class BatteryWidget(QWidget):
         padding = 12
         y_offset = padding
 
-        # 제목
         if self._cfg.title:
             painter.setFont(QFont("Segoe UI", 8))
             painter.setPen(sub_color)
@@ -140,17 +247,15 @@ class BatteryWidget(QWidget):
             painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, "장치 없음")
             return
 
-        row_h  = 32
-        bar_w  = 34
-        bar_h  = 8
-
+        row_h = 32
+        bar_w = 34
+        bar_h = 8
         name_font = QFont("Segoe UI", 10)
         pct_font  = QFont("Segoe UI", 8, QFont.Weight.Bold)
 
         for dev in self._devices:
             color = QColor(self._battery_color(dev.battery))
 
-            # 아이콘
             x_start = padding
             if self._cfg.show_icon:
                 icon_str = self._cfg.device_icons.get(dev.name, "🔵")
@@ -165,10 +270,9 @@ class BatteryWidget(QWidget):
                     painter.setFont(QFont("Segoe UI Emoji", 11))
                     painter.setPen(text_color)
                     painter.drawText(x_start, y_offset, 20, row_h,
-                                    Qt.AlignmentFlag.AlignVCenter, icon_str)
+                                     Qt.AlignmentFlag.AlignVCenter, icon_str)
                 x_start += 22
 
-            # 장치 이름 (말줄임)
             name_area_w = self.width() - x_start - bar_w - padding * 2
             painter.setFont(name_font)
             painter.setPen(text_color)
@@ -177,7 +281,6 @@ class BatteryWidget(QWidget):
             painter.drawText(x_start, y_offset, name_area_w, row_h,
                              Qt.AlignmentFlag.AlignVCenter, display_name)
 
-            # 배터리 바
             bx = self.width() - padding - bar_w
             by = y_offset + (row_h - bar_h) // 2
 
@@ -189,7 +292,6 @@ class BatteryWidget(QWidget):
             painter.setBrush(color)
             painter.drawRoundedRect(bx, by, fill_w, bar_h, 3, 3)
 
-            # 퍼센트
             painter.setFont(pct_font)
             painter.setPen(text_color)
             painter.drawText(bx, by - 13, bar_w, 13,
@@ -204,46 +306,3 @@ class BatteryWidget(QWidget):
         if pct > 20:
             return self._cfg.color_mid
         return self._cfg.color_low
-
-    # ── 드래그 / 스냅 ─────────────────────────────────────────────────
-
-    def mousePressEvent(self, e):
-        if self._cfg.drag_lock:
-            return
-        if e.button() == Qt.MouseButton.LeftButton:
-            self._drag_pos = e.globalPosition().toPoint() - self.frameGeometry().topLeft()
-
-    def mouseMoveEvent(self, e):
-        if self._cfg.drag_lock or not self._drag_pos:
-            return
-        if e.buttons() == Qt.MouseButton.LeftButton:
-            self.move(e.globalPosition().toPoint() - self._drag_pos)
-
-    def mouseReleaseEvent(self, _):
-        if self._drag_pos and self._cfg.corner_snap:
-            self._snap_to_corner()
-        self._drag_pos = None
-        # 위치 저장
-        self._cfg.pos_x = self.x()
-        self._cfg.pos_y = self.y()
-
-    def _snap_to_corner(self):
-        screen = QApplication.primaryScreen().availableGeometry()
-        m = self._cfg.snap_margin
-        x, y = self.x(), self.y()
-        w, h = self.width(), self.height()
-
-        snap_x = x
-        snap_y = y
-
-        if x < m:
-            snap_x = 0
-        elif x + w > screen.width() - m:
-            snap_x = screen.width() - w
-
-        if y < m:
-            snap_y = 0
-        elif y + h > screen.height() - m:
-            snap_y = screen.height() - h
-
-        self.move(snap_x, snap_y)
