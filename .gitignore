@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# 가상환경
+venv/
+env/
+.venv/
+ENV/
+
+# PyInstaller
+build/
+dist/
+*.manifest
+*.pyc
+
+# Inno Setup 산출물
+installer/Output/
+*_Setup.exe
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# 환경 변수 / 비밀
+.env
+*.local
+
+# 로그
+*.log
