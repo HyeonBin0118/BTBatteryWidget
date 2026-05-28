@@ -25,6 +25,7 @@ class Config:
     auto_theme_day_end: int = 20
     opacity: float = 0.85
     show_icon: bool = True
+    show_percentage: bool = True
     color_high: str = "#50C878"
     color_mid: str  = "#FFB400"
     color_low: str  = "#DC3232"

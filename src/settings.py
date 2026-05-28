@@ -71,6 +71,7 @@ class SettingsDialog(QDialog):
         self._cfg.auto_theme_day_end   = self._day_end_spin.value()
         self._cfg.opacity              = self._opacity_slider.value() / 100
         self._cfg.show_icon            = self._icon_check.isChecked()
+        self._cfg.show_percentage      = self._pct_check.isChecked()
         self._cfg.color_high           = self._color_high
         self._cfg.color_mid            = self._color_mid
         self._cfg.color_low            = self._color_low
@@ -163,6 +164,16 @@ class SettingsDialog(QDialog):
         opac_layout.addWidget(self._opacity_slider)
         opac_layout.addWidget(self._opacity_label)
         layout.addWidget(opac_group)
+
+        # 미니멀 모드
+        minimal_group = QGroupBox("미니멀 모드")
+        minimal_layout = QVBoxLayout(minimal_group)
+        self._pct_check = QCheckBox("배터리 % 숫자 표시")
+        self._pct_check.setChecked(self._cfg.show_percentage)
+        self._pct_check.stateChanged.connect(self._preview)
+        minimal_layout.addWidget(self._pct_check)
+        minimal_layout.addWidget(QLabel("끄면 색상 바만 표시됩니다 (아이콘 표시는 아래 '장치별 아이콘'에서 별도 제어)."))
+        layout.addWidget(minimal_group)
 
         # 배경색
         bg_group = QGroupBox("위젯 배경색")

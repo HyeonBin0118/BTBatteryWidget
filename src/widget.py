@@ -205,7 +205,7 @@ class BatteryWidget(QWidget):
                 self.setCursor(self._cursor_for_edge(edge))
             else:
                 self.setCursor(Qt.CursorShape.ArrowCursor)
-                
+
     def mouseReleaseEvent(self, _):
         if self._resize_edge:
             self._resize_edge = ""
@@ -306,11 +306,12 @@ class BatteryWidget(QWidget):
             painter.setBrush(color)
             painter.drawRoundedRect(bx, by, fill_w, bar_h, 3, 3)
 
-            painter.setFont(pct_font)
-            painter.setPen(text_color)
-            painter.drawText(bx, by - 13, bar_w, 13,
-                             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
-                             f"{dev.battery}%")
+            if self._cfg.show_percentage:
+                painter.setFont(pct_font)
+                painter.setPen(text_color)
+                painter.drawText(bx, by - 13, bar_w, 13,
+                                 Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
+                                 f"{dev.battery}%")
 
             y_offset += row_h
 
