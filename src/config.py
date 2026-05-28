@@ -28,6 +28,8 @@ class Config:
     color_high: str = "#50C878"
     color_mid: str  = "#FFB400"
     color_low: str  = "#DC3232"
+    bg_color_dark: str  = "#1E1E1E"
+    bg_color_light: str = "#F0F0F0"
 
     # [장치별 아이콘] - {"MX Master 4": "🖱", ...}
     device_icons: dict = field(default_factory=dict)

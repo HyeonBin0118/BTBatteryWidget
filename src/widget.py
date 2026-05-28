@@ -225,7 +225,8 @@ class BatteryWidget(QWidget):
         theme  = self._current_theme()
         is_dark = (theme == "dark")
 
-        bg_color   = QColor(30, 30, 30, 210) if is_dark else QColor(240, 240, 240, 220)
+        raw_bg   = QColor(self._cfg.bg_color_dark) if is_dark else QColor(self._cfg.bg_color_light)
+        bg_color = QColor(raw_bg.red(), raw_bg.green(), raw_bg.blue(), 210)
         text_color = QColor(230, 230, 230) if is_dark else QColor(30, 30, 30)
         sub_color  = QColor(160, 160, 160) if is_dark else QColor(100, 100, 100)
 

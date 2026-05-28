@@ -35,6 +35,8 @@ class SettingsDialog(QDialog):
         self._color_high = cfg.color_high
         self._color_mid  = cfg.color_mid
         self._color_low  = cfg.color_low
+        self._bg_dark    = cfg.bg_color_dark
+        self._bg_light   = cfg.bg_color_light
 
         self.setWindowTitle("설정")
         self.setMinimumWidth(480)
@@ -72,6 +74,8 @@ class SettingsDialog(QDialog):
         self._cfg.color_high           = self._color_high
         self._cfg.color_mid            = self._color_mid
         self._cfg.color_low            = self._color_low
+        self._cfg.bg_color_dark        = self._bg_dark
+        self._cfg.bg_color_light       = self._bg_light
         self._cfg.drag_lock            = self._drag_lock_check.isChecked()
         self._cfg.corner_snap          = self._snap_check.isChecked()
         self._cfg.snap_margin          = self._snap_margin_spin.value()
@@ -154,6 +158,17 @@ class SettingsDialog(QDialog):
         opac_layout.addWidget(self._opacity_slider)
         opac_layout.addWidget(self._opacity_label)
         layout.addWidget(opac_group)
+
+        # 배경색
+        bg_group = QGroupBox("위젯 배경색")
+        bg_form  = QFormLayout(bg_group)
+        self._btn_bg_dark  = _color_button(self._bg_dark)
+        self._btn_bg_light = _color_button(self._bg_light)
+        self._btn_bg_dark.clicked.connect(lambda: self._pick_bg("dark"))
+        self._btn_bg_light.clicked.connect(lambda: self._pick_bg("light"))
+        bg_form.addRow("다크 모드 배경", self._btn_bg_dark)
+        bg_form.addRow("라이트 모드 배경", self._btn_bg_light)
+        layout.addWidget(bg_group)
 
         # 배터리 바 색상
         color_group = QGroupBox("배터리 바 색상")
@@ -288,6 +303,20 @@ class SettingsDialog(QDialog):
         else:
             self._color_low = hex_c
             self._btn_low.setStyleSheet(f"background:{hex_c}; border:1px solid #555; border-radius:4px;")
+        self._preview()
+
+    def _pick_bg(self, which: str):
+        current = self._bg_dark if which == "dark" else self._bg_light
+        color = QColorDialog.getColor(QColor(current), self, "배경색 선택")
+        if not color.isValid():
+            return
+        hex_c = color.name()
+        if which == "dark":
+            self._bg_dark = hex_c
+            self._btn_bg_dark.setStyleSheet(f"background:{hex_c}; border:1px solid #555; border-radius:4px;")
+        else:
+            self._bg_light = hex_c
+            self._btn_bg_light.setStyleSheet(f"background:{hex_c}; border:1px solid #555; border-radius:4px;")
         self._preview()
 
     def _apply(self):
