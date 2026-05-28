@@ -77,7 +77,15 @@ class BatteryWidget(QWidget):
         return self._cfg.theme
 
     def _refresh(self):
-        self._devices = fetch_devices()
+        devices = fetch_devices()
+        # device_order 기준으로 정렬, 순서에 없는 새 장치는 뒤에 추가
+        order = self._cfg.device_order
+        if order:
+            ordered = [d for name in order for d in devices if d.name == name]
+            ordered += [d for d in devices if d.name not in order]
+            self._devices = ordered
+        else:
+            self._devices = devices
         self._check_alerts()
         self._auto_resize()
         self.update()

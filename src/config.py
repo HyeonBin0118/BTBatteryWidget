@@ -34,6 +34,9 @@ class Config:
     # [장치별 아이콘] - {"MX Master 4": "🖱", ...}
     device_icons: dict = field(default_factory=dict)
 
+    # [장치 표시 순서] - ["MX Master 4", "Xbox Controller", ...]
+    device_order: list = field(default_factory=list)
+
     # [동작]
     drag_lock: bool = False
     corner_snap: bool = True
@@ -58,6 +61,8 @@ def load() -> Config:
         default.update({k: v for k, v in data.items() if k in default})
         if not isinstance(default.get("device_icons"), dict):
             default["device_icons"] = {}
+        if not isinstance(default.get("device_order"), list):
+            default["device_order"] = []
         return Config(**default)
     except Exception:
         return Config()

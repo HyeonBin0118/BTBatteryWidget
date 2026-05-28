@@ -6,7 +6,7 @@ from PyQt6.QtWidgets import (
     QDialog, QTabWidget, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QLineEdit, QCheckBox, QComboBox, QSlider, QPushButton,
     QSpinBox, QColorDialog, QGroupBox, QFormLayout, QDialogButtonBox,
-    QScrollArea,
+    QScrollArea, QListWidget, QListWidgetItem, QAbstractItemView,
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QColor
@@ -82,6 +82,11 @@ class SettingsDialog(QDialog):
         self._cfg.alert_enabled        = self._alert_check.isChecked()
         self._cfg.alert_threshold      = self._threshold_spin.value()
         self._cfg.detect_new_device    = self._detect_check.isChecked()
+        # 장치 순서
+        self._cfg.device_order = [
+            self._order_list.item(i).text()
+            for i in range(self._order_list.count())
+        ]
 
     # ── 탭: 일반 ──────────────────────────────────────────────────────
 
@@ -183,6 +188,29 @@ class SettingsDialog(QDialog):
         color_form.addRow("중간 (20~50%)",   self._btn_mid)
         color_form.addRow("낮음 (20% 이하)", self._btn_low)
         layout.addWidget(color_group)
+
+        # 장치 표시 순서
+        order_group = QGroupBox("장치 표시 순서 (드래그로 변경)")
+        order_layout = QVBoxLayout(order_group)
+
+        self._order_list = QListWidget()
+        self._order_list.setDragDropMode(QAbstractItemView.DragDropMode.InternalMove)
+        self._order_list.setDefaultDropAction(Qt.DropAction.MoveAction)
+        self._order_list.setFixedHeight(120)
+
+        # 저장된 순서 기준으로 목록 구성, 새 장치는 뒤에 추가
+        device_names = [d.name for d in self._devices]
+        ordered = [n for n in self._cfg.device_order if n in device_names]
+        ordered += [n for n in device_names if n not in ordered]
+        for name in ordered:
+            item = QListWidgetItem(name)
+            item.setFlags(item.flags() | Qt.ItemFlag.ItemIsDragEnabled)
+            self._order_list.addItem(item)
+
+        self._order_list.model().rowsMoved.connect(self._preview)
+        order_layout.addWidget(QLabel("위로 올수록 위젯 상단에 표시됩니다."))
+        order_layout.addWidget(self._order_list)
+        layout.addWidget(order_group)
 
         # 장치별 아이콘
         icon_group = QGroupBox("장치별 아이콘")
