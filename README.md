@@ -5,9 +5,11 @@
 
 ## 사용 화면
 
-![위젯 다크 모드](images/widget_dark.png)
+![실사용 화면](images/widget_desktop.png)
 
-> 나머지 스크린샷 추가 예정
+| 다크 모드 | 라이트 모드 | 미니멀 모드 |
+|---|---|---|
+| ![dark](images/widget_dark.png) | ![light](images/widget_light.png) | ![minimal](images/widget_minimal.png) |
 
 ## 주요 기능
 
@@ -22,11 +24,10 @@
 - 마우스로 위젯 크기 직접 조절 (가장자리 드래그)
 - 모서리 스냅 (드래그 놓으면 가장 가까운 화면 모서리에 자동 정렬)
 - 위젯 잠금 (이동 및 크기 조절 불가)
-- 다크 / 라이트 / 시간대 자동 전환 테마
-- 다크 / 라이트 / 시간대 자동 전환 테마
 - 위젯 배경색 직접 지정 (다크 / 라이트 모드별 독립 설정)
 - 장치 표시 순서 사용자 지정 (설정창에서 드래그로 변경)
 - 미니멀 모드 (배터리 % 숫자 숨김, 색상 바만 표시)
+- 다크 / 라이트 / 시간대 자동 전환 테마
 
 ## 기술 스택
 
@@ -110,17 +111,15 @@ _BATTERY_KEY = DEVPROPKEY(
 
 설정창에서 슬라이더를 움직이거나 색상을 바꾸면 위젯에 즉시 반영된다. 단, "OK"를 눌러야 디스크에 저장되고 "Cancel"이면 변경 전 상태로 원복된다.
 
-초기 구현은 OK를 눌러야만 위젯에 반영되는 방식이었는데, 투명도/색상은 직접 보면서 조절해야 적정값을 찾을 수 있다는 피드백이 있어 구조를 바꿨다.
-
-```
+초기 구현은 OK를 눌러야만 위젯에 반영되는 방식이었는데, 투명도/색상은 직접 보면서 조절해야 적정값을 찾을 수 있다는 판단 하에 구조를 바꿨다.
+```bash
 설정 다이얼로그 열기 → 현재 config 백업
-   ↓
+↓
 값 변경 → 시그널로 위젯에 즉시 전달 (디스크 미저장)
-   ↓
+↓
 OK   → 디스크 저장
 Cancel → 백업본으로 위젯 원복
 ```
-
 ### 4. 위젯 크기 조절: setFixedSize 제거 → 가장자리 드래그
 
 초기에는 `setFixedHeight`로 장치 수에 맞게 높이를 자동 계산하고, 너비는 장치 이름 길이 기준으로 고정했다. 그런데 사용자마다 원하는 크기가 다르고, 직접 조절하는 게 훨씬 자연스럽다는 판단 하에 마우스 리사이즈를 구현했다.
@@ -128,11 +127,10 @@ Cancel → 백업본으로 위젯 원복
 가장자리 6px 범위를 감지해서 방향에 맞는 커서로 바꾸고, 드래그하면 해당 방향으로 크기가 변한다. 위젯 잠금이 켜져 있으면 리사이즈도 함께 막힌다.
 
 ## 프로젝트 구조
-
-```
+```bash
 BTBatteryWidget/
 ├── src/
-│   ├── __init__.py
+│   ├── init.py
 │   ├── battery.py      # SetupAPI ctypes 호출 + Device 데이터클래스
 │   ├── widget.py       # 플로팅 위젯 (frameless, 드래그, 리사이즈, 스냅)
 │   ├── tray.py         # 시스템 트레이 아이콘 + 메뉴
@@ -140,6 +138,14 @@ BTBatteryWidget/
 │   ├── icon_picker.py  # 장치별 아이콘 선택 위젯
 │   ├── config.py       # 설정 dataclass + JSON 로드/저장
 │   └── main.py         # QApplication 엔트리포인트
+├── images/
+│   ├── widget_dark.png
+│   ├── widget_light.png
+│   ├── widget_minimal.png
+│   ├── widget_desktop.png
+│   ├── settings_general.png
+│   ├── settings_appearance.png
+│   └── settings_behavior.png
 ├── installer/
 │   └── setup.iss       # Inno Setup 스크립트
 ├── build.spec          # PyInstaller 빌드 설정
@@ -152,11 +158,17 @@ BTBatteryWidget/
 설정창은 세 개의 탭으로 구성되어 있다.
 
 **일반**
+
+![settings_general](images/settings_general.png)
+
 - 제목 문구 변경
 - 새로고침 주기 (1 ~ 60분)
 - 시작 프로그램 자동 실행
 
 **외관**
+
+![settings_appearance](images/settings_appearance.png)
+
 - 테마 (다크 / 라이트 / 시간대 자동)
 - 투명도 슬라이더 (10% ~ 100%)
 - 위젯 배경색 (다크 / 라이트 모드별 독립 지정)
@@ -167,6 +179,9 @@ BTBatteryWidget/
 - 장치별 아이콘 변경 (마우스 / 헤드폰 / 키보드 / 컨트롤러 등)
 
 **동작**
+
+![settings_behavior](images/settings_behavior.png)
+
 - 위젯 잠금 (이동 및 크기 조절 불가)
 - 모서리 스냅 + 감지 거리(px)
 - 배터리 낮음 알림 활성화 + 임계값 지정 (%)
