@@ -7,7 +7,7 @@
 
 ![실사용 화면](images/widget_desktop.png)
 
-| 다크 모드 | 라이트 모드 | 미니멀 모드 |
+| 다크 모드 | 라이트 모드 |
 |---|---|---|
 | ![dark](images/widget_dark.png) | ![light](images/widget_light.png) |
 
