@@ -9,7 +9,7 @@
 
 | 다크 모드 | 라이트 모드 | 미니멀 모드 |
 |---|---|---|
-| ![dark](images/widget_dark.png) | ![light](images/widget_light.png) | ![minimal](images/widget_minimal.png) |
+| ![dark](images/widget_dark.png) | ![light](images/widget_light.png) |
 
 ## 주요 기능
 
